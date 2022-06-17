@@ -20,35 +20,58 @@ using ProtoBuf;
 using System.IO;
 using QuantConnect.Data;
 using System.Collections.Generic;
+using Microsoft.VisualBasic.FileIO;
 using System.Globalization;
+using QuantConnect.Util;
+using Newtonsoft.Json;
+using static QuantConnect.StringExtensions;
 
 namespace QuantConnect.DataSource
 {
     /// <summary>
-    /// Example custom data type
+    /// Government Contracts by Agencies
     /// </summary>
-    [ProtoContract(SkipConstructor = true)]
-    public class MyCustomDataUniverseType : BaseData
+    public class QuiverGovernmentContracts : BaseData
     {
-        /// <summary>
-        /// Some custom data property
-        /// </summary>
-        public string SomeCustomProperty { get; set; } 
 
         /// <summary>
-        /// Some custom data property
+        /// Date that the GovernmentContracts spend was reported
         /// </summary>
-        public decimal SomeNumericProperty { get; set; }
+        [JsonProperty(PropertyName = "Date")]
+        [JsonConverter(typeof(DateTimeJsonConverter), "yyyy-MM-dd")]
+        public DateTime Date { get; set; }
 
         /// <summary>
-        /// Time passed between the date of the data and the time the data became available to us
+        ///     Contract description
         /// </summary>
-        public TimeSpan Period { get; set; } = TimeSpan.FromDays(1);
+        [JsonProperty(PropertyName = "Description")]
+        public string Description { get; set; }
+        
+        /// <summary>
+        ///     Awarding Agency Name
+        /// </summary>
+        [JsonProperty(PropertyName = "Agency")]
+        public string Agency { get; set; }
 
         /// <summary>
-        /// Time the data became available
+        ///     Total dollars obligated under the given contract
         /// </summary>
-        public override DateTime EndTime => Time + Period;
+        [JsonProperty(PropertyName = "Amount")]
+        public decimal Amount { get; set; }
+        
+        /// <summary>
+        /// The period of time that occurs between the starting time and ending time of the data point
+        /// </summary>
+        private TimeSpan _period = TimeSpan.FromDays(1);
+
+        /// <summary>
+        /// The time the data point ends at and becomes available to the algorithm
+        /// </summary>
+        public override DateTime EndTime
+        {
+            get { return Time + _period; }
+            set { Time = value - _period; }
+        }
 
         /// <summary>
         /// Return the URL string source of the file. This will be converted to a stream
@@ -63,9 +86,9 @@ namespace QuantConnect.DataSource
                 Path.Combine(
                     Globals.DataFolder,
                     "alternative",
-                    "mycustomdatatype",
-                    "universe",
-                    $"{date.ToStringInvariant(DateFormat.EightCharacter)}.csv"
+                    "quiver",
+                    "governmentcontracts",
+                    $"{config.Symbol.Value.ToLowerInvariant()}.csv"
                 ),
                 SubscriptionTransportMedium.LocalFile
             );
@@ -81,18 +104,48 @@ namespace QuantConnect.DataSource
         /// <returns>New instance</returns>
         public override BaseData Reader(SubscriptionDataConfig config, string line, DateTime date, bool isLiveMode)
         {
-            var csv = line.Split(','); 
+            var csv = line.Split(',');
 
-            var someNumericProperty = decimal.Parse(csv[2], NumberStyles.Any, CultureInfo.InvariantCulture); 
-
-            return new MyCustomDataUniverseType
+            var parsedDate = Parse.DateTimeExact(csv[0], "yyyyMMdd");
+            return new QuiverGovernmentContracts
             {
-                Symbol = new Symbol(SecurityIdentifier.Parse(csv[0]), csv[1]),
-                SomeNumericProperty = someNumericProperty,
-                SomeCustomProperty = csv[3],
-                Time =  date - Period,
-                Value = someNumericProperty
+                Symbol = config.Symbol,
+
+                Date = Parse.DateTimeExact(csv[2], "yyyyMMdd"),
+                Description = csv[3],
+                Agency = csv[4],
+                Amount = Parse.Decimal(csv[5]),
+                Time = parsedDate,
+                _period = TimeSpan.FromDays(1),
             };
+        }
+
+        /// <summary>
+        /// Clones the data
+        /// </summary>
+        /// <returns>A clone of the object</returns>
+        public override BaseData Clone()
+        {
+            return new QuiverGovernmentContracts
+            {
+                Symbol = Symbol,
+                Time = Time,
+                EndTime = EndTime,
+
+                Date = Date,
+                Description = Description,
+                Agency = Agency,
+                Amount = Amount,
+            };
+        }
+
+        /// <summary>
+        /// Indicates whether the data source is tied to an underlying symbol and requires that corporate events be applied to it as well, such as renames and delistings
+        /// </summary>
+        /// <returns>false</returns>
+        public override bool RequiresMapping()
+        {
+            return true;
         }
 
         /// <summary>
@@ -110,7 +163,10 @@ namespace QuantConnect.DataSource
         /// </summary>
         public override string ToString()
         {
-            return $"{Symbol} - {Value}";
+            return Invariant($"{Symbol}({Date}) :: ") +
+                Invariant($"GovernmentContracts Description: {Description} ") +
+                Invariant($"GovernmentContracts Agency: {Agency} ") +
+                Invariant($"GovernmentContracts Amount: {Amount}");
         }
 
         /// <summary>

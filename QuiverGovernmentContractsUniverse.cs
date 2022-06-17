@@ -20,20 +20,37 @@ using ProtoBuf;
 using System.IO;
 using QuantConnect.Data;
 using System.Collections.Generic;
+using System.Globalization;
+using QuantConnect.Orders;
+using static QuantConnect.StringExtensions;
 
 namespace QuantConnect.DataSource
 {
     /// <summary>
-    /// Example custom data type
+    /// Universe Selection helper class for QuiverQuant Government Contracts dataset
     /// </summary>
     [ProtoContract(SkipConstructor = true)]
-    public class MyCustomDataType : BaseData
+    public class QuiverGovernmentContractUniverse : BaseData
     {
         /// <summary>
-        /// Some custom data property
+        /// Date that the GovernmentContracts spend was reported
         /// </summary>
-        [ProtoMember(2000)]
-        public string SomeCustomProperty { get; set; }
+        public DateTime Date { get; set; }
+
+        /// <summary>
+        ///     Contract description
+        /// </summary>
+        public string Description { get; set; }
+        
+        /// <summary>
+        ///     Awarding Agency Name
+        /// </summary>
+        public string Agency { get; set; }
+
+        /// <summary>
+        ///     Total dollars obligated under the given contract
+        /// </summary>
+        public decimal? Amount { get; set; }
 
         /// <summary>
         /// Time passed between the date of the data and the time the data became available to us
@@ -58,8 +75,10 @@ namespace QuantConnect.DataSource
                 Path.Combine(
                     Globals.DataFolder,
                     "alternative",
-                    "mycustomdatatype",
-                    $"{config.Symbol.Value.ToLowerInvariant()}.csv"
+                    "quiver",
+                    "governmentcontracts",
+                    "universe",
+                    $"{date.ToStringInvariant(DateFormat.EightCharacter)}.csv"
                 ),
                 SubscriptionTransportMedium.LocalFile
             );
@@ -75,39 +94,22 @@ namespace QuantConnect.DataSource
         /// <returns>New instance</returns>
         public override BaseData Reader(SubscriptionDataConfig config, string line, DateTime date, bool isLiveMode)
         {
-            var csv = line.Split(',');
+            var csv = line.Split(','); 
 
-            var parsedDate = Parse.DateTimeExact(csv[0], "yyyyMMdd");
-            return new MyCustomDataType
+            var curdate = Parse.DateTimeExact(csv[2], "yyyyMMdd");
+            var price = csv[5].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
+
+            return new QuiverGovernmentContractUniverse
             {
-                Symbol = config.Symbol,
-                SomeCustomProperty = csv[1],
-                Time = parsedDate - Period,
-            };
-        }
+                Date = curdate,
+                Description = csv[3],
+                Agency = csv[4],
+                Amount = price,
 
-        /// <summary>
-        /// Clones the data
-        /// </summary>
-        /// <returns>A clone of the object</returns>
-        public override BaseData Clone()
-        {
-            return new MyCustomDataType
-            {
-                Symbol = Symbol,
-                Time = Time,
-                EndTime = EndTime,
-                SomeCustomProperty = SomeCustomProperty,
+                Symbol = new Symbol(SecurityIdentifier.Parse(csv[0]), csv[1]),
+                Time = curdate - Period,
+                Value = price ?? 0
             };
-        }
-
-        /// <summary>
-        /// Indicates whether the data source is tied to an underlying symbol and requires that corporate events be applied to it as well, such as renames and delistings
-        /// </summary>
-        /// <returns>false</returns>
-        public override bool RequiresMapping()
-        {
-            return true;
         }
 
         /// <summary>
@@ -125,7 +127,10 @@ namespace QuantConnect.DataSource
         /// </summary>
         public override string ToString()
         {
-            return $"{Symbol} - {SomeCustomProperty}";
+            return Invariant($"{Symbol}({Date}) :: ") +
+                   Invariant($"Description: {Description} ") +
+                   Invariant($"Agency: {Agency} ") +
+                   Invariant($"Amount: {Amount} ");
         }
 
         /// <summary>

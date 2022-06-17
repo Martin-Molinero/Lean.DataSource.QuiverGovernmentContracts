@@ -28,7 +28,7 @@ class CustomDataUniverse(QCAlgorithm):
         self.SetCash(100000)
 
         # add a custom universe data source (defaults to usa-equity)
-        self.AddUniverse(MyCustomDataUniverseType, "MyCustomDataUniverseType", Resolution.Daily, self.UniverseSelection)
+        self.AddUniverse(QuiverGovernmentContractUniverse, "QuiverGovernmentContractUniverse", Resolution.Daily, self.UniverseSelection)
 
     def UniverseSelection(self, data):
         ''' Selected the securities
@@ -37,10 +37,10 @@ class CustomDataUniverse(QCAlgorithm):
         :return: List of Symbol objects '''
 
         for datum in data:
-            self.Log(f"{datum.Symbol},{datum.Followers},{datum.DayPercentChange},{datum.WeekPercentChange}")
+            self.Log(f"{datum.Symbol},{datum.Description},{datum.Agency},{datum.Amount}")
         
         # define our selection criteria
-        return [d.Symbol for d in data if d.SomeCustomProperty == 'buy']
+        return [d.Symbol for d in data if d.Amount > 2000]
 
     def OnSecuritiesChanged(self, changes):
         ''' Event fired each time that we add/remove securities from the data feed
