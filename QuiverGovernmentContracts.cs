@@ -15,15 +15,12 @@
 */
 
 using System;
-using NodaTime;
-using ProtoBuf;
-using System.IO;
-using QuantConnect.Data;
 using System.Collections.Generic;
-using Microsoft.VisualBasic.FileIO;
-using System.Globalization;
-using QuantConnect.Util;
+using System.IO;
 using Newtonsoft.Json;
+using NodaTime;
+using QuantConnect.Data;
+using QuantConnect.Util;
 using static QuantConnect.StringExtensions;
 
 namespace QuantConnect.DataSource
@@ -33,6 +30,7 @@ namespace QuantConnect.DataSource
     /// </summary>
     public class QuiverGovernmentContracts : BaseData
     {
+        private static readonly TimeSpan _period = TimeSpan.FromDays(1);
 
         /// <summary>
         /// Date that the GovernmentContracts spend was reported
@@ -60,18 +58,9 @@ namespace QuantConnect.DataSource
         public decimal Amount { get; set; }
         
         /// <summary>
-        /// The period of time that occurs between the starting time and ending time of the data point
-        /// </summary>
-        private TimeSpan _period = TimeSpan.FromDays(1);
-
-        /// <summary>
         /// The time the data point ends at and becomes available to the algorithm
         /// </summary>
-        public override DateTime EndTime
-        {
-            get { return Time + _period; }
-            set { Time = value - _period; }
-        }
+        public override DateTime EndTime => Time + _period;
 
         /// <summary>
         /// Return the URL string source of the file. This will be converted to a stream
@@ -106,17 +95,16 @@ namespace QuantConnect.DataSource
         {
             var csv = line.Split(',');
 
-            var parsedDate = Parse.DateTimeExact(csv[0], "yyyyMMdd");
+            var parsedDate = Parse.DateTimeExact(csv[0], "yyyyMMdd") - _period;
             return new QuiverGovernmentContracts
             {
                 Symbol = config.Symbol,
 
-                Date = Parse.DateTimeExact(csv[2], "yyyyMMdd"),
-                Description = csv[3],
-                Agency = csv[4],
-                Amount = Parse.Decimal(csv[5]),
+                Date = parsedDate,
+                Description = csv[1],
+                Agency = csv[2],
+                Amount = Parse.Decimal(csv[3]),
                 Time = parsedDate,
-                _period = TimeSpan.FromDays(1),
             };
         }
 

@@ -19,10 +19,10 @@ from AlgorithmImports import *
 class CustomDataAlgorithm(QCAlgorithm):
     def Initialize(self):
         ''' Initialise the data and resolution required, as well as the cash and start-end dates for your algorithm. All algorithms must initialized.'''
-        
+
         self.SetStartDate(2020, 10, 7)   #Set Start Date
         self.SetEndDate(2020, 10, 11)    #Set End Date
-        self.equity_symbol = self.AddEquity("SPY", Resolution.Daily).Symbol
+        self.equity_symbol = self.AddEquity("AAPL", Resolution.Daily).Symbol
         self.custom_data_symbol = self.AddData(QuiverGovernmentContracts, self.equity_symbol).Symbol
 
     def OnData(self, slice):
@@ -34,16 +34,16 @@ class CustomDataAlgorithm(QCAlgorithm):
         if data:
             custom_data = data[self.custom_data_symbol]
             if custom_data.Amount > 5:
-                self.SetHoldings(custom_data.Symbol.Underlying, 1)
+                self.SetHoldings(self.equity_symbol, 1)
 
             # Go short in the stock if it was mentioned less than 5 times in the GovernmentContracts daily discussion
             if custom_data.Amount < 5:
-                self.SetHoldings(custom_data.Symbol.Underlying, -1)
+                self.SetHoldings(self.equity_symbol, -1)
 
     def OnOrderEvent(self, orderEvent):
         ''' Order fill event handler. On an order fill update the resulting information is passed to this method.
 
         :param OrderEvent orderEvent: Order event details containing details of the events
         '''
-        if orderEvent.Status == OrderStatus.Fill:
+        if orderEvent.Status == OrderStatus.Filled:
             self.Debug(f'Purchased Stock: {orderEvent.Symbol}')

@@ -14,9 +14,7 @@
  *
 */
 
-using System;
 using System.Linq;
-using QuantConnect.Data;
 using QuantConnect.Data.UniverseSelection;
 using QuantConnect.DataSource;
 
@@ -49,8 +47,8 @@ namespace QuantConnect.Algorithm.CSharp
 
                 // define our selection criteria
                 return from d in data 
-                    where d.Amount > 2000
-                    select d.Symbol;
+                       where d.Amount > 2000m
+                       select d.Symbol;
             });
         }
 

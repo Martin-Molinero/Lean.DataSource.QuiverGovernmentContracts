@@ -15,13 +15,11 @@
 */
 
 using System;
-using NodaTime;
-using ProtoBuf;
-using System.IO;
-using QuantConnect.Data;
 using System.Collections.Generic;
 using System.Globalization;
-using QuantConnect.Orders;
+using System.IO;
+using NodaTime;
+using QuantConnect.Data;
 using static QuantConnect.StringExtensions;
 
 namespace QuantConnect.DataSource
@@ -29,13 +27,9 @@ namespace QuantConnect.DataSource
     /// <summary>
     /// Universe Selection helper class for QuiverQuant Government Contracts dataset
     /// </summary>
-    [ProtoContract(SkipConstructor = true)]
     public class QuiverGovernmentContractUniverse : BaseData
     {
-        /// <summary>
-        /// Date that the GovernmentContracts spend was reported
-        /// </summary>
-        public DateTime Date { get; set; }
+        private static readonly TimeSpan Period = TimeSpan.FromDays(1);
 
         /// <summary>
         ///     Contract description
@@ -51,11 +45,6 @@ namespace QuantConnect.DataSource
         ///     Total dollars obligated under the given contract
         /// </summary>
         public decimal? Amount { get; set; }
-
-        /// <summary>
-        /// Time passed between the date of the data and the time the data became available to us
-        /// </summary>
-        public TimeSpan Period { get; set; } = TimeSpan.FromDays(1);
 
         /// <summary>
         /// Time the data became available
@@ -96,19 +85,17 @@ namespace QuantConnect.DataSource
         {
             var csv = line.Split(','); 
 
-            var curdate = Parse.DateTimeExact(csv[2], "yyyyMMdd");
-            var price = csv[5].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
+            var amount = csv[4].IfNotNullOrEmpty<decimal?>(s => decimal.Parse(s, NumberStyles.Any, CultureInfo.InvariantCulture));
 
             return new QuiverGovernmentContractUniverse
             {
-                Date = curdate,
-                Description = csv[3],
-                Agency = csv[4],
-                Amount = price,
+                Description = csv[2],
+                Agency = csv[3],
+                Amount = amount,
 
                 Symbol = new Symbol(SecurityIdentifier.Parse(csv[0]), csv[1]),
-                Time = curdate - Period,
-                Value = price ?? 0
+                Time = date,
+                Value = amount ?? 0
             };
         }
 
@@ -127,7 +114,7 @@ namespace QuantConnect.DataSource
         /// </summary>
         public override string ToString()
         {
-            return Invariant($"{Symbol}({Date}) :: ") +
+            return Invariant($"{Symbol}({Time}) :: ") +
                    Invariant($"Description: {Description} ") +
                    Invariant($"Agency: {Agency} ") +
                    Invariant($"Amount: {Amount} ");

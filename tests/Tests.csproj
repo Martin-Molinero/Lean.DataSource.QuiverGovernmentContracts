@@ -10,7 +10,6 @@
     <Content Include="..\QuiverGovernmentContractsUniverseSelectionAlgorithm.py" Link="QuiverGovernmentContractsUniverseSelectionAlgorithm.py" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="protobuf-net" Version="3.0.29" />
     <PackageReference Include="NUnit" Version="3.13.1" />
     <PackageReference Include="NUnit3TestAdapter" Version="3.17.0">
       <PrivateAssets>all</PrivateAssets>
@@ -21,11 +20,5 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\QuantConnect.DataSource.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Remove="config.json" />
-    <Content Include="config.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </Content>
   </ItemGroup>
 </Project>

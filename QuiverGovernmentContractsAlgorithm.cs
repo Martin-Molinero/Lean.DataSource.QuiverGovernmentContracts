@@ -35,11 +35,10 @@ namespace QuantConnect.DataLibrary.Tests
         /// </summary>
         public override void Initialize()
         {
-            SetStartDate(2013, 10, 07);  //Set Start Date
-            SetEndDate(2013, 10, 11);    //Set End Date
-            _equitySymbol = AddEquity("SPY").Symbol;
+            SetStartDate(2020, 10, 7);  //Set Start Date
+            SetEndDate(2020, 10, 11);    //Set End Date
+            _equitySymbol = AddEquity("AAPL").Symbol;
             _customDataSymbol = AddData<QuiverGovernmentContracts>(_equitySymbol).Symbol;
-
         }
 
         /// <summary>
@@ -53,13 +52,13 @@ namespace QuantConnect.DataLibrary.Tests
             {
                 var amount = data[_customDataSymbol].Amount;
                 // based on the custom data property we will buy or short the underlying equity
-                if (amount >= 0.5M)
+                if (amount >= 5m)
                 {
                     SetHoldings(_equitySymbol, 1);
                 }
-                else if (amount <= 0.2M)
+                else if (amount <= 5m)
                 {
-                    Liquidate(_equitySymbol);
+                    SetHoldings(_equitySymbol, -1);
                 }
             }
         }
@@ -70,7 +69,7 @@ namespace QuantConnect.DataLibrary.Tests
         /// <param name="orderEvent">Order event details containing details of the events</param>
         public override void OnOrderEvent(OrderEvent orderEvent)
         {
-            if (orderEvent.Status.IsFill())
+            if (orderEvent.Status == OrderStatus.Filled)
             {
                 Debug($"Purchased Stock: {orderEvent.Symbol}");
             }
