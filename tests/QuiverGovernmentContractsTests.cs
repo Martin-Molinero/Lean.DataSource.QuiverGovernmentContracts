@@ -15,10 +15,7 @@
 */
 
 using System;
-using ProtoBuf;
-using System.IO;
 using System.Linq;
-using ProtoBuf.Meta;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using QuantConnect.Data;

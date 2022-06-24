@@ -55,7 +55,9 @@ namespace QuantConnect.DataProcessing
             '_',
             '$',
             '(',
-            ')'
+            ')',
+            '+',
+            '='
         };
         private ConcurrentDictionary<string, ConcurrentQueue<string>> _tempData = new();
         
@@ -81,10 +83,9 @@ namespace QuantConnect.DataProcessing
             _clientKey = apiKey ?? Config.Get("vendor-auth-token");
             _canCreateUniverseFiles = Directory.Exists(Path.Combine(_dataFolder, "equity", "usa", "map_files"));
 
-            // Represents rate limits of 10 requests per 1.1 second
-            _indexGate = new RateGate(10, TimeSpan.FromSeconds(1.1));
+            // Represents rate limits of 100 requests per 60 second
+            _indexGate = new RateGate(100, TimeSpan.FromSeconds(60));
 
-            Directory.CreateDirectory(_destinationFolder);
             Directory.CreateDirectory(_universeFolder);
         }
 
@@ -112,7 +113,6 @@ namespace QuantConnect.DataProcessing
                     var quiverTicker = company.Ticker;
                     string ticker;
 
-
                     if (!TryNormalizeDefunctTicker(quiverTicker, out ticker))
                     {
                         Log.Error(
@@ -132,9 +132,9 @@ namespace QuantConnect.DataProcessing
 
                         if (quiverLData.IsFaulted)
                         {
-                                Log.Error(
-                                    $"QuiverCNBCDataDownloader.Run(): Failed to get data for {company}");
-                                return;
+                            Log.Error(
+                                $"QuiverCNBCDataDownloader.Run(): Failed to get data for {company}");
+                            return;
                         }
 
                         var result = quiverLData.Result;
@@ -144,50 +144,48 @@ namespace QuantConnect.DataProcessing
                             // We've already logged inside HttpRequester
                             return;
                         }
-
                         
                         var recentGovernmentContracts = JsonConvert.DeserializeObject<List<QuiverGovernmentContracts>>(result, _jsonSerializerSettings);
                         var csvContents = new List<string>();
                         
                         foreach (var contract in recentGovernmentContracts)
                         {
-                            if (contract.Date == today)
+                            if (contract.Date == today || contract.Date == DateTime.MinValue)
                             {
-                                Log.Trace($"Encountered data from today: {today:yyyy-MM-dd} - Skipping");
+                                Log.Trace($"Encountered data from invalid date: {contract.Date:yyyy-MM-dd} - Skipping");
                                 continue;
                             }
 
-                                var date = $"{contract.Date:yyyyMMdd}";
-                                var curRow = string.Join(",", 
-                                    $"{contract.Description}",
-                                    $"{contract.Agency}",
-                                    $"{contract.Amount}");
-                                
+                            var date = $"{contract.Date:yyyyMMdd}";
+                            var description = contract.Description == null ? null : contract.Description.Replace(",", ";").Replace("\n", " ");
+                            var curRow = $"{description},{contract.Agency},{contract.Amount}";
 
-                                csvContents.Add($"{date},{curRow}");
+                            csvContents.Add($"{date},{curRow}");
 
-                                if (!_canCreateUniverseFiles)
-                                    continue;
-
-                                var queue = _tempData.GetOrAdd(date, new ConcurrentQueue<string>());
-                                queue.Enqueue($"{sid},{ticker},{curRow}");
-                            
-                        }
-                        if (csvContents.Count != 0)
+                            if (!_canCreateUniverseFiles)
                             {
-                                SaveContentToFile(_destinationFolder, ticker, csvContents);
+                                continue;
                             }
+
+                            var queue = _tempData.GetOrAdd(date, new ConcurrentQueue<string>());
+                            queue.Enqueue($"{sid},{ticker},{curRow}");
+                        }
+
+                        if (csvContents.Count != 0)
+                        {
+                            SaveContentToFile(_destinationFolder, ticker, csvContents);
+                        }
                     }));
                     
                     Task.WaitAll(tasks.ToArray());
 
                     foreach (var kvp in _tempData)
-                        {
-                            SaveContentToFile(_universeFolder, kvp.Key, kvp.Value);
-                        }
+                    {
+                        SaveContentToFile(_universeFolder, kvp.Key, kvp.Value);
+                    }
 
-                        _tempData.Clear();
-                        tasks.Clear();
+                    _tempData.Clear();
+                    tasks.Clear();
                 }
             }
             catch (Exception e)
@@ -286,10 +284,7 @@ namespace QuantConnect.DataProcessing
                 .OrderBy(x => DateTime.ParseExact(x.Split(',').First(), "yyyyMMdd", CultureInfo.InvariantCulture, DateTimeStyles.AdjustToUniversal))
                 .ToList();
 
-            var tempPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid()}.tmp");
-            File.WriteAllLines(tempPath, finalLines);
-            var tempFilePath = new FileInfo(tempPath);
-            tempFilePath.MoveTo(finalPath, true);
+            File.WriteAllLines(finalPath, finalLines);
         }
 
         /// <summary>
@@ -354,12 +349,6 @@ namespace QuantConnect.DataProcessing
             /// <summary>
             /// The ticker/symbol for the company
             /// </summary>
-            [JsonProperty(PropertyName = "Ticker")]
-            public string Ticker { get; set; }
-        }
-
-        private class RawQuiverGovernmentContracts : QuiverGovernmentContracts 
-        {
             [JsonProperty(PropertyName = "Ticker")]
             public string Ticker { get; set; }
         }
