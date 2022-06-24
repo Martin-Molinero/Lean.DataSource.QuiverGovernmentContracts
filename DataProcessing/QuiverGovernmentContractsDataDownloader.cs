@@ -150,7 +150,7 @@ namespace QuantConnect.DataProcessing
                         
                         foreach (var contract in recentGovernmentContracts)
                         {
-                            if (contract.Date == today || contract.Date == new DateTime(1, 1, 1))
+                            if (contract.Date == today || contract.Date == DateTime.MinValue)
                             {
                                 Log.Trace($"Encountered data from invalid date: {contract.Date:yyyy-MM-dd} - Skipping");
                                 continue;
