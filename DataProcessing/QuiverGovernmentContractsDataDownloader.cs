@@ -126,8 +126,6 @@ namespace QuantConnect.DataProcessing
                     // Makes sure we don't overrun Quiver rate limits accidentally
                     _indexGate.WaitToProceed();
 
-                    var sid = SecurityIdentifier.GenerateEquity(ticker, Market.USA, true, mapFileProvider, today);
-
                     tasks.Add( HttpRequester($"historical/govcontractsall/{ticker}").ContinueWith( quiverLData => {
 
                         if (quiverLData.IsFaulted)
@@ -166,6 +164,8 @@ namespace QuantConnect.DataProcessing
                             {
                                 continue;
                             }
+
+                            var sid = SecurityIdentifier.GenerateEquity(ticker, Market.USA, true, mapFileProvider, contract.Date);
 
                             var queue = _tempData.GetOrAdd(date, new ConcurrentQueue<string>());
                             queue.Enqueue($"{sid},{ticker},{curRow}");
