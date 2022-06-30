@@ -70,7 +70,6 @@ namespace QuantConnect.DataLibrary.Tests
                 Time = DateTime.Today,
                 DataType = MarketDataType.Base,
                 
-                Date = DateTime.Today,
                 Description = "Description",
                 Agency = "Agency",
                 Amount = 0.43m

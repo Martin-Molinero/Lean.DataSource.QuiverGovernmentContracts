@@ -38,6 +38,7 @@ namespace QuantConnect.DataProcessing
                 Config.Get("temp-output-directory", "/temp-output-directory"),
                 "alternative",
                 "quiver");
+            var date = Config.Get("data-date");
 
             QuiverGovernmentContractDownloader instance = null;
             try
@@ -55,8 +56,18 @@ namespace QuantConnect.DataProcessing
             // The downloader/converter is ran and cleaned up for you safely here.
             try
             {
+                bool success;
+
                 // Run the data downloader/converter.
-                var success = instance.Run();
+                if (date == String.Empty)
+                {
+                    success = instance.Run();
+                }
+                else
+                {
+                    success = instance.Run(date);
+                }
+                
                 if (!success)
                 {
                     Log.Error($"QuantConnect.DataProcessing.Program.Main(): Failed to download/process {QuiverGovernmentContractDownloader.VendorName} {QuiverGovernmentContractDownloader.VendorDataName} data");

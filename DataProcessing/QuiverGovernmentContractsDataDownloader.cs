@@ -199,6 +199,83 @@ namespace QuantConnect.DataProcessing
         }
 
         /// <summary>
+        /// Runs the instance of the object with given date.
+        /// </summary>
+        /// <param name="processDate">The date of data to be fetched and processed</param>
+        /// <returns>True if process all downloads successfully</returns>
+        public bool Run(string processDate)
+        {
+            var stopwatch = Stopwatch.StartNew();
+            var today = DateTime.UtcNow.Date;
+            Log.Trace($"QuiverGovernmentContractsDataDownloader.Run(): Start downloading/processing QuiverQuant GovernmentContracts data");
+                
+            try
+            {
+                var quiverGovContractsData = HttpRequester($"live/govcontractsall?date={processDate}").SynchronouslyAwaitTaskResult();
+                if (string.IsNullOrWhiteSpace(quiverGovContractsData))
+                {
+                    // We've already logged inside HttpRequester
+                    return false;
+                }
+
+                var govContractsByDate = JsonConvert.DeserializeObject<List<RawGovernmentContracts>>(quiverGovContractsData, _jsonSerializerSettings)?
+                    .OrderBy(x => x.Date.Date).ThenBy(x => x.Ticker).GroupBy(x => x.Date.Date);
+
+                var govContractsByTicker = new Dictionary<string, List<string>>();
+
+                var mapFileProvider = new LocalZipMapFileProvider();
+                mapFileProvider.Initialize(new DefaultDataProvider());
+
+                foreach (var kvp in govContractsByDate)
+                {
+                    var date = kvp.Key;
+                    if (date == today || date == DateTime.MinValue)
+                    {
+                        Log.Trace($"Encountered data from invalid date: {date:yyyy-MM-dd} - Skipping");
+                        continue;
+                    }
+
+                    var universeCsvContents = new List<string>();
+
+                    foreach (var govContract in kvp)
+                    {
+                        var ticker = govContract.Ticker.ToUpperInvariant();
+
+                        if (!govContractsByTicker.TryGetValue(ticker, out var _))
+                        {
+                            govContractsByTicker.Add(ticker, new List<string>());
+                        }
+
+                        var description = govContract.Description == null ? null : govContract.Description.Replace(",", ";").Replace("\n", " ");
+                        var curRow = $"{description},{govContract.Agency},{govContract.Amount}";
+
+                        govContractsByTicker[ticker].Add($"{date:yyyyMMdd},{curRow}");
+
+                        if (!_canCreateUniverseFiles) continue;
+
+                        var sid = SecurityIdentifier.GenerateEquity(ticker, Market.USA, true, mapFileProvider, date);
+                        universeCsvContents.Add($"{sid},{ticker},{curRow}");
+                    }
+
+                    if (_canCreateUniverseFiles && universeCsvContents.Any())
+                    {
+                        SaveContentToFile(_universeFolder, $"{date:yyyyMMdd}", universeCsvContents);
+                    }
+                }
+
+                govContractsByTicker.DoForEach(kvp => SaveContentToFile(_destinationFolder, kvp.Key, kvp.Value));
+            }
+            catch (Exception e)
+            {
+                Log.Error(e);
+                return false;
+            }
+
+            Log.Trace($"QuiverGovernmentContractsDataDownloader.Run(): Finished in {stopwatch.Elapsed.ToStringInvariant(null)}");
+            return true;
+        }
+
+        /// <summary>
         /// Sends a GET request for the provided URL
         /// </summary>
         /// <param name="url">URL to send GET request for</param>
@@ -351,6 +428,16 @@ namespace QuantConnect.DataProcessing
             /// </summary>
             [JsonProperty(PropertyName = "Ticker")]
             public string Ticker { get; set; }
+        }
+
+        private class RawGovernmentContracts : QuiverGovernmentContracts
+        {
+            /// <summary>
+            /// Date that the GovernmentContracts spend was reported
+            /// </summary>
+            [JsonProperty(PropertyName = "Date")]
+            [JsonConverter(typeof(DateTimeJsonConverter), "yyyy-MM-dd")]
+            public DateTime Date { get; set; }
         }
 
         /// <summary>
