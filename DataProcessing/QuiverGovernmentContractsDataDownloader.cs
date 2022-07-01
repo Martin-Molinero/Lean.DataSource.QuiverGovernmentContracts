@@ -90,32 +90,15 @@ namespace QuantConnect.DataProcessing
         }
 
         /// <summary>
-        /// Runs the instance of the object.
-        /// </summary>
-        /// <param name="fromDate">The start date of data processing</param>
-        /// <param name="toDate">The start date of data processing</param>
-        /// <returns>True if process all downloads successfully</returns>
-        public bool Run(DateTime fromDate, DateTime toDate)
-        {
-            var stopwatch = Stopwatch.StartNew();
-            Log.Trace($"QuiverGovernmentContractsDataDownloader.Run(): Start downloading/processing QuiverQuant GovernmentContracts data");
-            
-            for(var day = fromDate; day.Date <= toDate; day = day.AddDays(1))
-            {
-                Run(day);
-            }
-
-            Log.Trace($"QuiverGovernmentContractsDataDownloader.Run(): Finished in {stopwatch.Elapsed.ToStringInvariant(null)}");
-            return true;
-        }
-
-        /// <summary>
         /// Runs the instance of the object with given date.
         /// </summary>
         /// <param name="processDate">The date of data to be fetched and processed</param>
         /// <returns>True if process all downloads successfully</returns>
         public bool Run(DateTime processDate)
         {
+            var stopwatch = Stopwatch.StartNew();
+            Log.Trace($"QuiverGovernmentContractsDataDownloader.Run(): Start downloading/processing QuiverQuant GovernmentContracts data");
+            
             var today = DateTime.UtcNow.Date;
             try
             {
@@ -175,6 +158,7 @@ namespace QuantConnect.DataProcessing
                 return false;
             }
             
+            Log.Trace($"QuiverGovernmentContractsDataDownloader.Run(): Finished in {stopwatch.Elapsed.ToStringInvariant(null)}");
             return true;
         }
 

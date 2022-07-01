@@ -38,10 +38,8 @@ namespace QuantConnect.DataProcessing
                 Config.Get("temp-output-directory", "/temp-output-directory"),
                 "alternative",
                 "quiver");
-            var fromDateString = Config.Get("from-date", "");
-            var toDateString = Config.Get("to-date", "");
-            var fromDate = fromDateString == null || fromDateString == String.Empty ? DateTime.UtcNow.AddDays(-2).Date : Parse.DateTimeExact(fromDateString, "yyyyMMdd");
-            var toDate = toDateString == null || toDateString == String.Empty ? DateTime.UtcNow.AddDays(-1).Date : Parse.DateTimeExact(toDateString, "yyyyMMdd");
+            var processingDateValue = Config.Get("processing-date", Environment.GetEnvironmentVariable("QC_DATAFLEET_DEPLOYMENT_DATE"));
+            var processingDate = Parse.DateTimeExact(processingDateValue, "yyyyMMdd");
 
             QuiverGovernmentContractDownloader instance = null;
             try
@@ -60,7 +58,7 @@ namespace QuantConnect.DataProcessing
             try
             {
                 // Run the data downloader/converter.
-                var success = instance.Run(fromDate, toDate);
+                var success = instance.Run(processingDate);
                 
                 if (!success)
                 {
