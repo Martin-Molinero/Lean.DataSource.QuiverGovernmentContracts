@@ -14,7 +14,6 @@
 */
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -49,17 +48,6 @@ namespace QuantConnect.DataProcessing
         private readonly string _dataFolder = Globals.DataFolder;
         private readonly bool _canCreateUniverseFiles;
         private readonly int _maxRetries = 5;
-        private static readonly List<char> _defunctDelimiters = new()
-        {
-            '-',
-            '_',
-            '$',
-            '(',
-            ')',
-            '+',
-            '='
-        };
-        private ConcurrentDictionary<string, ConcurrentQueue<string>> _tempData = new();
         
         private readonly JsonSerializerSettings _jsonSerializerSettings = new()
         {
@@ -90,110 +78,74 @@ namespace QuantConnect.DataProcessing
         }
 
         /// <summary>
-        /// Runs the instance of the object.
+        /// Runs the instance of the object with given date.
         /// </summary>
+        /// <param name="processDate">The date of data to be fetched and processed</param>
         /// <returns>True if process all downloads successfully</returns>
-        public bool Run()
+        public bool Run(DateTime processDate)
         {
             var stopwatch = Stopwatch.StartNew();
-            var today = DateTime.Today;
-
-            var mapFileProvider = new LocalZipMapFileProvider();
-            mapFileProvider.Initialize(new DefaultDataProvider());
-
+            Log.Trace($"QuiverGovernmentContractsDataDownloader.Run(): Start downloading/processing QuiverQuant GovernmentContracts data");
+            
+            var today = DateTime.UtcNow.Date;
             try
             {
-                var tasks = new List<Task>();
-                Log.Trace($"QuiverGovernmentContractsDataDownloader.Run(): Start downloading/processing QuiverQuant GovernmentContracts data");
-
-                var companies = GetCompanies().Result.DistinctBy(x => x.Ticker).ToList();
-
-                foreach (var company in companies)
+                if (processDate >= today || processDate == DateTime.MinValue)
                 {
-                    var quiverTicker = company.Ticker;
-                    string ticker;
-
-                    if (!TryNormalizeDefunctTicker(quiverTicker, out ticker))
-                    {
-                        Log.Error(
-                            $"QuiverCNBCDataDownloader(): Defunct ticker {quiverTicker} is unable to be parsed. Continuing...");
-                        continue;
-                    }
-
-                    // Begin processing ticker with a normalized value
-                    Log.Trace($"QuiverCNBCDataDownloader.Run(): Processing {ticker}");
-
-                    // Makes sure we don't overrun Quiver rate limits accidentally
-                    _indexGate.WaitToProceed();
-
-                    tasks.Add( HttpRequester($"historical/govcontractsall/{ticker}").ContinueWith( quiverLData => {
-
-                        if (quiverLData.IsFaulted)
-                        {
-                            Log.Error(
-                                $"QuiverCNBCDataDownloader.Run(): Failed to get data for {company}");
-                            return;
-                        }
-
-                        var result = quiverLData.Result;
-
-                        if (string.IsNullOrEmpty(result))
-                        {
-                            // We've already logged inside HttpRequester
-                            return;
-                        }
-                        
-                        var recentGovernmentContracts = JsonConvert.DeserializeObject<List<QuiverGovernmentContracts>>(result, _jsonSerializerSettings);
-                        var csvContents = new List<string>();
-                        
-                        foreach (var contract in recentGovernmentContracts)
-                        {
-                            if (contract.Date == today || contract.Date == DateTime.MinValue)
-                            {
-                                Log.Trace($"Encountered data from invalid date: {contract.Date:yyyy-MM-dd} - Skipping");
-                                continue;
-                            }
-
-                            var date = $"{contract.Date:yyyyMMdd}";
-                            var description = contract.Description == null ? null : contract.Description.Replace(",", ";").Replace("\n", " ");
-                            var curRow = $"{description},{contract.Agency},{contract.Amount}";
-
-                            csvContents.Add($"{date},{curRow}");
-
-                            if (!_canCreateUniverseFiles)
-                            {
-                                continue;
-                            }
-
-                            var sid = SecurityIdentifier.GenerateEquity(ticker, Market.USA, true, mapFileProvider, contract.Date);
-
-                            var queue = _tempData.GetOrAdd(date, new ConcurrentQueue<string>());
-                            queue.Enqueue($"{sid},{ticker},{curRow}");
-                        }
-
-                        if (csvContents.Count != 0)
-                        {
-                            SaveContentToFile(_destinationFolder, ticker, csvContents);
-                        }
-                    }));
-                    
-                    Task.WaitAll(tasks.ToArray());
-
-                    foreach (var kvp in _tempData)
-                    {
-                        SaveContentToFile(_universeFolder, kvp.Key, kvp.Value);
-                    }
-
-                    _tempData.Clear();
-                    tasks.Clear();
+                    Log.Trace($"Encountered data from invalid date: {processDate:yyyy-MM-dd} - Skipping");
+                    return false;
                 }
+                    
+                var quiverGovContractsData = HttpRequester($"live/govcontractsall?date={processDate:yyyyMMdd}").SynchronouslyAwaitTaskResult();
+                if (string.IsNullOrWhiteSpace(quiverGovContractsData))
+                {
+                    // We've already logged inside HttpRequester
+                    return false;
+                }
+
+                var govContractsByDate = JsonConvert.DeserializeObject<List<RawGovernmentContracts>>(quiverGovContractsData, _jsonSerializerSettings);
+                
+                var govContractsByTicker = new Dictionary<string, List<string>>();
+                var universeCsvContents = new List<string>();
+
+                var mapFileProvider = new LocalZipMapFileProvider();
+                mapFileProvider.Initialize(new DefaultDataProvider());
+
+                foreach (var govContract in govContractsByDate)
+                {
+                    var ticker = govContract.Ticker.ToUpperInvariant();
+
+                    if (!govContractsByTicker.TryGetValue(ticker, out var _))
+                    {
+                        govContractsByTicker.Add(ticker, new List<string>());
+                    }
+
+                    var description = govContract.Description == null ? null : govContract.Description.Replace(",", ";").Replace("\n", " ");
+                    var curRow = $"{description},{govContract.Agency},{govContract.Amount}";
+
+                    govContractsByTicker[ticker].Add($"{processDate:yyyyMMdd},{curRow}");
+
+                    var sid = SecurityIdentifier.GenerateEquity(ticker, Market.USA, true, mapFileProvider, processDate);
+                    universeCsvContents.Add($"{sid},{ticker},{curRow}");
+                }
+
+                if (!_canCreateUniverseFiles)
+                {
+                    return false;
+                }
+                else if (universeCsvContents.Any())
+                {
+                    SaveContentToFile(_universeFolder, $"{processDate:yyyyMMdd}", universeCsvContents);
+                }
+
+                govContractsByTicker.DoForEach(kvp => SaveContentToFile(_destinationFolder, kvp.Key, kvp.Value));
             }
             catch (Exception e)
             {
                 Log.Error(e);
                 return false;
             }
-
+            
             Log.Trace($"QuiverGovernmentContractsDataDownloader.Run(): Finished in {stopwatch.Elapsed.ToStringInvariant(null)}");
             return true;
         }
@@ -287,64 +239,14 @@ namespace QuantConnect.DataProcessing
             File.WriteAllLines(finalPath, finalLines);
         }
 
-        /// <summary>
-        /// Tries to normalize a potentially defunct ticker into a normal ticker.
-        /// </summary>
-        /// <param name="ticker">Ticker as received from Estimize</param>
-        /// <param name="nonDefunctTicker">Set as the non-defunct ticker</param>
-        /// <returns>true for success, false for failure</returns>
-        private static bool TryNormalizeDefunctTicker(string ticker, out string nonDefunctTicker)
-        {
-            // The "defunct" indicator can be in any capitalization/case
-            if (ticker.IndexOf("defunct", StringComparison.OrdinalIgnoreCase) > 0)
-            {
-                foreach (var delimChar in _defunctDelimiters)
-                {
-                    var length = ticker.IndexOf(delimChar);
-
-                    // Continue until we exhaust all delimiters
-                    if (length == -1)
-                    {
-                        continue;
-                    }
-
-                    nonDefunctTicker = ticker[..length].Trim();
-                    return true;
-                }
-
-                nonDefunctTicker = string.Empty;
-                return false;
-            }
-
-            nonDefunctTicker = ticker;
-            return true;
-        }
-
-        /// <summary>
-        /// Gets the list of companies
-        /// </summary>
-        /// <returns>List of companies</returns>
-        /// <exception cref="Exception"></exception>
-        private async Task<List<Company>> GetCompanies()
-        {
-            try
-            {
-                var content = await HttpRequester("companies");
-                return JsonConvert.DeserializeObject<List<Company>>(content);
-            }
-            catch (Exception e)
-            {
-                throw new Exception("QuiverDownloader.GetSymbols(): Error parsing companies list", e);
-            }
-        }
-
-        private class Company
+        private class RawGovernmentContracts : QuiverGovernmentContracts
         {
             /// <summary>
-            /// The name of the company
+            /// Date that the GovernmentContracts spend was reported
             /// </summary>
-            [JsonProperty(PropertyName = "Name")]
-            public string Name { get; set; }
+            [JsonProperty(PropertyName = "Date")]
+            [JsonConverter(typeof(DateTimeJsonConverter), "yyyy-MM-dd")]
+            public DateTime Date { get; set; }
 
             /// <summary>
             /// The ticker/symbol for the company

@@ -33,14 +33,7 @@ namespace QuantConnect.DataSource
         private static readonly TimeSpan _period = TimeSpan.FromDays(1);
 
         /// <summary>
-        /// Date that the GovernmentContracts spend was reported
-        /// </summary>
-        [JsonProperty(PropertyName = "Date")]
-        [JsonConverter(typeof(DateTimeJsonConverter), "yyyy-MM-dd")]
-        public DateTime Date { get; set; }
-
-        /// <summary>
-        ///     Contract description
+        /// Contract description
         /// </summary>
         [JsonProperty(PropertyName = "Description")]
         public string Description { get; set; }
@@ -100,7 +93,6 @@ namespace QuantConnect.DataSource
             {
                 Symbol = config.Symbol,
 
-                Date = parsedDate,
                 Description = csv[1],
                 Agency = csv[2],
                 Amount = Parse.Decimal(csv[3]),
@@ -120,7 +112,6 @@ namespace QuantConnect.DataSource
                 Time = Time,
                 EndTime = EndTime,
 
-                Date = Date,
                 Description = Description,
                 Agency = Agency,
                 Amount = Amount,
@@ -151,7 +142,7 @@ namespace QuantConnect.DataSource
         /// </summary>
         public override string ToString()
         {
-            return Invariant($"{Symbol}({Date}) :: ") +
+            return Invariant($"{Symbol}({Time}) :: ") +
                 Invariant($"GovernmentContracts Description: {Description} ") +
                 Invariant($"GovernmentContracts Agency: {Agency} ") +
                 Invariant($"GovernmentContracts Amount: {Amount}");
