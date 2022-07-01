@@ -14,7 +14,6 @@
 */
 
 using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
@@ -49,17 +48,6 @@ namespace QuantConnect.DataProcessing
         private readonly string _dataFolder = Globals.DataFolder;
         private readonly bool _canCreateUniverseFiles;
         private readonly int _maxRetries = 5;
-        private static readonly List<char> _defunctDelimiters = new()
-        {
-            '-',
-            '_',
-            '$',
-            '(',
-            ')',
-            '+',
-            '='
-        };
-        private ConcurrentDictionary<string, ConcurrentQueue<string>> _tempData = new();
         
         private readonly JsonSerializerSettings _jsonSerializerSettings = new()
         {
@@ -249,72 +237,6 @@ namespace QuantConnect.DataProcessing
                 .ToList();
 
             File.WriteAllLines(finalPath, finalLines);
-        }
-
-        /// <summary>
-        /// Tries to normalize a potentially defunct ticker into a normal ticker.
-        /// </summary>
-        /// <param name="ticker">Ticker as received from Estimize</param>
-        /// <param name="nonDefunctTicker">Set as the non-defunct ticker</param>
-        /// <returns>true for success, false for failure</returns>
-        private static bool TryNormalizeDefunctTicker(string ticker, out string nonDefunctTicker)
-        {
-            // The "defunct" indicator can be in any capitalization/case
-            if (ticker.IndexOf("defunct", StringComparison.OrdinalIgnoreCase) > 0)
-            {
-                foreach (var delimChar in _defunctDelimiters)
-                {
-                    var length = ticker.IndexOf(delimChar);
-
-                    // Continue until we exhaust all delimiters
-                    if (length == -1)
-                    {
-                        continue;
-                    }
-
-                    nonDefunctTicker = ticker[..length].Trim();
-                    return true;
-                }
-
-                nonDefunctTicker = string.Empty;
-                return false;
-            }
-
-            nonDefunctTicker = ticker;
-            return true;
-        }
-
-        /// <summary>
-        /// Gets the list of companies
-        /// </summary>
-        /// <returns>List of companies</returns>
-        /// <exception cref="Exception"></exception>
-        private async Task<List<Company>> GetCompanies()
-        {
-            try
-            {
-                var content = await HttpRequester("companies");
-                return JsonConvert.DeserializeObject<List<Company>>(content);
-            }
-            catch (Exception e)
-            {
-                throw new Exception("QuiverDownloader.GetSymbols(): Error parsing companies list", e);
-            }
-        }
-
-        private class Company
-        {
-            /// <summary>
-            /// The name of the company
-            /// </summary>
-            [JsonProperty(PropertyName = "Name")]
-            public string Name { get; set; }
-
-            /// <summary>
-            /// The ticker/symbol for the company
-            /// </summary>
-            [JsonProperty(PropertyName = "Ticker")]
-            public string Ticker { get; set; }
         }
 
         private class RawGovernmentContracts : QuiverGovernmentContracts
