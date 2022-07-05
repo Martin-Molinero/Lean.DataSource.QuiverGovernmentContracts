@@ -44,6 +44,7 @@ namespace QuantConnect.DataProcessing
         
         private readonly string _destinationFolder;
         private readonly string _universeFolder;
+        private readonly string _processedDataDirectory;
         private readonly string _clientKey;
         private readonly string _dataFolder = Globals.DataFolder;
         private readonly bool _canCreateUniverseFiles;
@@ -63,11 +64,14 @@ namespace QuantConnect.DataProcessing
         /// Creates a new instance of <see cref="QuiverGovernmentContracts"/>
         /// </summary>
         /// <param name="destinationFolder">The folder where the data will be saved</param>
+        /// <param name="processedDataDirectory">The folder where the data will be read from</param>
         /// <param name="apiKey">The Vendor API key</param>
-        public QuiverGovernmentContractDownloader(string destinationFolder, string apiKey = null)
+        public QuiverGovernmentContractDownloader(string destinationFolder, string processedDataDirectory, string apiKey = null)
         {
-            _destinationFolder = Path.Combine(destinationFolder, VendorDataName);
+            _destinationFolder = Path.Combine(destinationFolder, VendorName, VendorDataName);
             _universeFolder = Path.Combine(_destinationFolder, "universe");
+            _processedDataDirectory = Path.Combine(processedDataDirectory, VendorName, VendorDataName);
+
             _clientKey = apiKey ?? Config.Get("vendor-auth-token");
             _canCreateUniverseFiles = Directory.Exists(Path.Combine(_dataFolder, "equity", "usa", "map_files"));
 
@@ -219,12 +223,23 @@ namespace QuantConnect.DataProcessing
         {
             name = name.ToLowerInvariant();
             var finalPath = Path.Combine(destinationFolder, $"{name}.csv");
-            var finalFileExists = File.Exists(finalPath);
+            string filePath;
+
+            if (destinationFolder.Contains("universe"))
+            {
+                filePath = Path.Combine(_processedDataDirectory, "universe", $"{name}.csv");
+            }
+            else
+            {
+                filePath = Path.Combine(_processedDataDirectory, $"{name}.csv");
+            }
+
+            var finalFileExists = File.Exists(filePath);
 
             var lines = new HashSet<string>(contents);
             if (finalFileExists)
             {
-                foreach (var line in File.ReadAllLines(finalPath))
+                foreach (var line in File.ReadAllLines(filePath))
                 {
                     lines.Add(line);
                 }
