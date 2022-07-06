@@ -50,15 +50,22 @@ namespace QuantConnect.DataLibrary.Tests
             var data = slice.Get<QuiverGovernmentContracts>();
             if (!data.IsNullOrEmpty())
             {
-                var amount = data[_customDataSymbol].Amount;
-                // based on the custom data property we will buy or short the underlying equity
-                if (amount >= 5m)
+                foreach (var govContracts in data.Values)
                 {
-                    SetHoldings(_equitySymbol, 1);
-                }
-                else if (amount <= 5m)
-                {
-                    SetHoldings(_equitySymbol, -1);
+                    Log($"{Time} {govContracts.ToString()}");
+                    foreach (QuiverGovernmentContract govContract in govContracts)
+                    {
+                        var amount = govContract.Amount;
+                        // based on the custom data property we will buy or short the underlying equity
+                        if (amount >= 5m)
+                        {
+                            SetHoldings(_equitySymbol, 1);
+                        }
+                        else if (amount <= 5m)
+                        {
+                            SetHoldings(_equitySymbol, -1);
+                        }
+                    }
                 }
             }
         }

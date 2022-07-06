@@ -107,7 +107,7 @@ namespace QuantConnect.DataProcessing
                     return false;
                 }
 
-                var govContractsByDate = JsonConvert.DeserializeObject<List<RawGovernmentContracts>>(quiverGovContractsData, _jsonSerializerSettings);
+                var govContractsByDate = JsonConvert.DeserializeObject<List<RawGovernmentContract>>(quiverGovContractsData, _jsonSerializerSettings);
                 
                 var govContractsByTicker = new Dictionary<string, List<string>>();
                 var universeCsvContents = new List<string>();
@@ -254,7 +254,7 @@ namespace QuantConnect.DataProcessing
             File.WriteAllLines(finalPath, finalLines);
         }
 
-        private class RawGovernmentContracts : QuiverGovernmentContracts
+        private class RawGovernmentContract : QuiverGovernmentContract
         {
             /// <summary>
             /// Date that the GovernmentContracts spend was reported

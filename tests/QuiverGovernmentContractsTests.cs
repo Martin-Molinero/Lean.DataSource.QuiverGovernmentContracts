@@ -19,12 +19,13 @@ using System.Linq;
 using Newtonsoft.Json;
 using NUnit.Framework;
 using QuantConnect.Data;
+using QuantConnect.Data.UniverseSelection;
 using QuantConnect.DataSource;
 
 namespace QuantConnect.DataLibrary.Tests
 {
     [TestFixture]
-    public class QuiverGovernmentContractsTests
+    public class QuiverGovernmentContractTests
     {
         [Test]
         public void JsonRoundTrip()
@@ -41,6 +42,15 @@ namespace QuantConnect.DataLibrary.Tests
         public void Clone()
         {
             var expected = CreateNewInstance();
+            var result = expected.Clone();
+
+            AssertAreEqual(expected, result);
+        }
+
+        [Test]
+        public void CloneCollection()
+        {
+            var expected = CreateNewCollectionInstance();
             var result = expected.Clone();
 
             AssertAreEqual(expected, result);
@@ -64,7 +74,7 @@ namespace QuantConnect.DataLibrary.Tests
 
         private BaseData CreateNewInstance()
         {
-            return new QuiverGovernmentContracts
+            return new QuiverGovernmentContract
             {
                 Symbol = Symbol.Empty,
                 Time = DateTime.Today,
@@ -73,6 +83,33 @@ namespace QuantConnect.DataLibrary.Tests
                 Description = "Description",
                 Agency = "Agency",
                 Amount = 0.43m
+            };
+        }
+
+        private BaseDataCollection CreateNewCollectionInstance()
+        {
+            return new QuiverGovernmentContracts
+            {
+                new QuiverGovernmentContract
+                {
+                    Symbol = Symbol.Empty,
+                    Time = DateTime.Today,
+                    DataType = MarketDataType.Base,
+                    
+                    Description = "Description",
+                    Agency = "Agency",
+                    Amount = 0.43m
+                },
+                new QuiverGovernmentContract
+                {
+                    Symbol = Symbol.Empty,
+                    Time = DateTime.Today,
+                    DataType = MarketDataType.Base,
+                    
+                    Description = "Description",
+                    Agency = "Agency",
+                    Amount = 0.43m
+                }
             };
         }
     }
