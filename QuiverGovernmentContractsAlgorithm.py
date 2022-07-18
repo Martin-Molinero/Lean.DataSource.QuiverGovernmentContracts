@@ -33,7 +33,7 @@ class CustomDataAlgorithm(QCAlgorithm):
         data = slice.Get(QuiverGovernmentContracts)
         if data:
             for gov_contracts in data.values():
-                self.Log(f"{Time} {gov_contracts.ToString()}")
+                self.Log(f"{self.Time} {gov_contracts.ToString()}")
                 
                 for gov_contract in gov_contracts:
                     if gov_contract.Amount > 5:
