@@ -32,12 +32,10 @@ class CustomDataAlgorithm(QCAlgorithm):
         '''
         data = slice.Get(QuiverGovernmentContracts)
         if data:
-            for gov_contracts in data:
+            for gov_contracts in data.values():
                 self.Log(f"{Time} {gov_contracts.ToString()}")
                 
                 for gov_contract in gov_contracts:
-                    gov_contract = QuiverGovernmentContract(gov_contract)
-                    
                     if gov_contract.Amount > 5:
                         self.SetHoldings(self.equity_symbol, 1)
                     # Go short in the stock if it was mentioned less than 5 times in the GovernmentContracts daily discussion
