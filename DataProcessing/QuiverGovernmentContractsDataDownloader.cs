@@ -164,13 +164,15 @@ namespace QuantConnect.DataProcessing
         /// <exception cref="Exception">Failed to get data after exceeding retries</exception>
         private async Task<string> HttpRequester(string url)
         {
+            var baseUrl = "https://api.quiverquant.com/beta/";
+
             for (var retries = 1; retries <= _maxRetries; retries++)
             {
                 try
                 {
                     using (var client = new HttpClient())
                     {
-                        client.BaseAddress = new Uri("https://api.quiverquant.com/beta/");
+                        client.BaseAddress = new Uri(baseUrl);
                         client.DefaultRequestHeaders.Clear();
 
                         // You must supply your API key in the HTTP header,
@@ -184,6 +186,7 @@ namespace QuantConnect.DataProcessing
                         _indexGate.WaitToProceed();
 
                         var response = await client.GetAsync(Uri.EscapeUriString(url));
+
                         if (response.StatusCode == HttpStatusCode.NotFound)
                         {
                             Log.Error($"QuiverGovernmentContractDownloader.HttpRequester(): Files not found at url: {Uri.EscapeUriString(url)}");
@@ -212,7 +215,7 @@ namespace QuantConnect.DataProcessing
                 }
             }
 
-            throw new Exception($"Request failed with no more retries remaining (retry {_maxRetries}/{_maxRetries})");
+            throw new Exception($"Request for {baseUrl}{url} failed with no more retries remaining (retry {_maxRetries}/{_maxRetries})");
         }
 
         /// <summary>
