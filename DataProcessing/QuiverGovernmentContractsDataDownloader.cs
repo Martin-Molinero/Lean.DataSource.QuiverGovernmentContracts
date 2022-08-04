@@ -103,9 +103,11 @@ namespace QuantConnect.DataProcessing
                 var quiverGovContractsData = HttpRequester($"live/govcontractsall?date={processDate:yyyyMMdd}").SynchronouslyAwaitTaskResult();
                 if (string.IsNullOrWhiteSpace(quiverGovContractsData))
                 {
+                    Log.Trace($@"QuiverGovernmentContractsDataDownloader.Run(): Received no data - {quiverGovContractsData}");
                     // We've already logged inside HttpRequester
                     return false;
                 }
+                Log.Trace($@"QuiverGovernmentContractsDataDownloader.Run(): Received data - {quiverGovContractsData}");
 
                 var govContractsByDate = JsonConvert.DeserializeObject<List<RawGovernmentContract>>(quiverGovContractsData, _jsonSerializerSettings);
                 
