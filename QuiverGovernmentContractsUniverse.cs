@@ -18,16 +18,17 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using NodaTime;
 using QuantConnect.Data;
-using static QuantConnect.StringExtensions;
+using QuantConnect.Data.UniverseSelection;
 
 namespace QuantConnect.DataSource
 {
     /// <summary>
     /// Universe Selection helper class for QuiverQuant Government Contracts dataset
     /// </summary>
-    public class QuiverGovernmentContractUniverse : BaseData
+    public class QuiverGovernmentContractUniverse : BaseDataCollection
     {
         private static readonly TimeSpan Period = TimeSpan.FromDays(1);
 
@@ -69,7 +70,8 @@ namespace QuantConnect.DataSource
                     "universe",
                     $"{date.ToStringInvariant(DateFormat.EightCharacter)}.csv"
                 ),
-                SubscriptionTransportMedium.LocalFile
+                SubscriptionTransportMedium.LocalFile,
+                FileFormat.FoldingCollection
             );
         }
 
@@ -114,10 +116,30 @@ namespace QuantConnect.DataSource
         /// </summary>
         public override string ToString()
         {
-            return Invariant($"{Symbol}({Time}) :: ") +
-                   Invariant($"Description: {Description} ") +
-                   Invariant($"Agency: {Agency} ") +
-                   Invariant($"Amount: {Amount} ");
+            var niceString = Data.OfType<QuiverGovernmentContractUniverse>().Select(data => $"({Symbol}) :: " +
+                $"Description: {data.Description} " +
+                $"Agency: {data.Agency} " +
+                $"Amount: {data.Amount}");
+            return $"{Time}: [{string.Join(",", niceString)}]";
+        }
+
+        /// <summary>
+        /// Clones the data
+        /// </summary>
+        /// <returns>A clone of the object</returns>
+        public override BaseData Clone()
+        {
+            return new QuiverGovernmentContractUniverse
+            {
+                Symbol = Symbol,
+                Time = Time,
+                Data = Data,
+                Value = Value,
+
+                Description = Description,
+                Agency = Agency,
+                Amount = Amount,
+            };
         }
 
         /// <summary>

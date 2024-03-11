@@ -38,7 +38,7 @@ namespace QuantConnect.DataLibrary.Tests
             SetStartDate(2020, 10, 7);  //Set Start Date
             SetEndDate(2020, 10, 11);    //Set End Date
             _equitySymbol = AddEquity("AAPL").Symbol;
-            _customDataSymbol = AddData<QuiverGovernmentContracts>(_equitySymbol).Symbol;
+            _customDataSymbol = AddData<QuiverGovernmentContract>(_equitySymbol).Symbol;
         }
 
         /// <summary>
@@ -47,7 +47,7 @@ namespace QuantConnect.DataLibrary.Tests
         /// <param name="slice">Slice object keyed by symbol containing the stock data</param>
         public override void OnData(Slice slice)
         {
-            var data = slice.Get<QuiverGovernmentContracts>();
+            var data = slice.Get<QuiverGovernmentContract>();
             if (!data.IsNullOrEmpty())
             {
                 foreach (var govContracts in data.Values)

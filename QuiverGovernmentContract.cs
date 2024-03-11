@@ -16,17 +16,19 @@
 
 using System;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using Newtonsoft.Json;
 using NodaTime;
 using QuantConnect.Data;
-using static QuantConnect.StringExtensions;
+using QuantConnect.Data.UniverseSelection;
 
 namespace QuantConnect.DataSource
 {
     /// <summary>
     /// Government Contract by Agencies
     /// </summary>
-    public class QuiverGovernmentContract : BaseData
+    public class QuiverGovernmentContract : BaseDataCollection
     {
         private static readonly TimeSpan _period = TimeSpan.FromDays(1);
 
@@ -52,6 +54,28 @@ namespace QuantConnect.DataSource
         /// The time the data point ends at and becomes available to the algorithm
         /// </summary>
         public override DateTime EndTime => Time + _period;
+
+        /// <summary>
+        /// Return the URL string source of the file. This will be converted to a stream
+        /// </summary>
+        /// <param name="config">Configuration object</param>
+        /// <param name="date">Date of this source file</param>
+        /// <param name="isLiveMode">true if we're in live mode, false for backtesting mode</param>
+        /// <returns>String URL of source file.</returns>
+        public override SubscriptionDataSource GetSource(SubscriptionDataConfig config, DateTime date, bool isLiveMode)
+        {
+            return new SubscriptionDataSource(
+                Path.Combine(
+                    Globals.DataFolder,
+                    "alternative",
+                    "quiver",
+                    "governmentcontracts",
+                    $"{config.Symbol.Value.ToLowerInvariant()}.csv"
+                ),
+                SubscriptionTransportMedium.LocalFile,
+                FileFormat.FoldingCollection
+            );
+        }
 
         /// <summary>
         /// Parses the data from the line provided and loads it into LEAN
@@ -87,7 +111,7 @@ namespace QuantConnect.DataSource
             {
                 Symbol = Symbol,
                 Time = Time,
-                EndTime = EndTime,
+                Data = Data,
 
                 Description = Description,
                 Agency = Agency,
@@ -96,14 +120,16 @@ namespace QuantConnect.DataSource
         }
 
         /// <summary>
-        /// Converts the instance to string
+        /// Formats a string with QuiverGovernmentContract data
         /// </summary>
+        /// <returns>string containing QuiverGovernmentContract information</returns>
         public override string ToString()
         {
-            return Invariant($"{Symbol}({Time}) :: ") +
-                Invariant($"GovernmentContracts Description: {Description} ") +
-                Invariant($"GovernmentContracts Agency: {Agency} ") +
-                Invariant($"GovernmentContracts Amount: {Amount}");
+            var niceString = Data.OfType<QuiverGovernmentContract>().Select(data => $"{Symbol}:: " +
+                $"Description: {data.Description} " +
+                $"Agency: {data.Agency} " +
+                $"Amount: {data.Amount}");
+            return $"{Time:yyyyMMdd}: [{string.Join(",", niceString)}]";
         }
 
         /// <summary>

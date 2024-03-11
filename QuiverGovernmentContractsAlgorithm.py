@@ -23,14 +23,14 @@ class CustomDataAlgorithm(QCAlgorithm):
         self.SetStartDate(2020, 10, 7)   #Set Start Date
         self.SetEndDate(2020, 10, 11)    #Set End Date
         self.equity_symbol = self.AddEquity("AAPL", Resolution.Daily).Symbol
-        self.custom_data_symbol = self.AddData(QuiverGovernmentContracts, self.equity_symbol).Symbol
+        self.custom_data_symbol = self.AddData(QuiverGovernmentContract, self.equity_symbol).Symbol
 
     def OnData(self, slice):
         ''' OnData event is the primary entry point for your algorithm. Each new data point will be pumped in here.
 
         :param Slice slice: Slice object keyed by symbol containing the stock data
         '''
-        data = slice.Get(QuiverGovernmentContracts)
+        data = slice.Get(QuiverGovernmentContract)
         if data:
             for gov_contracts in data.values():
                 self.Log(f"{self.Time} {gov_contracts.ToString()}")
